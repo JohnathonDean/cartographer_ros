@@ -47,17 +47,21 @@ DEFINE_string(
 namespace cartographer_ros {
 namespace {
 
+// 主函数中启动节点运行的接口
 void Run() {
   constexpr double kTfBufferCacheTimeInSeconds = 10.;
   tf2_ros::Buffer tf_buffer{::ros::Duration(kTfBufferCacheTimeInSeconds)};
   tf2_ros::TransformListener tf(tf_buffer);
+  // 加载参数配置
   NodeOptions node_options;
   TrajectoryOptions trajectory_options;
   std::tie(node_options, trajectory_options) =
       LoadOptions(FLAGS_configuration_directory, FLAGS_configuration_basename);
 
+  // 创建map_builder
   auto map_builder =
       cartographer::mapping::CreateMapBuilder(node_options.map_builder_options);
+  // 创建SLAM主节点
   Node node(node_options, std::move(map_builder), &tf_buffer,
             FLAGS_collect_metrics);
   if (!FLAGS_load_state_filename.empty()) {
@@ -70,7 +74,9 @@ void Run() {
 
   ::ros::spin();
 
+  // 当ROS节点停止之后，调用接口停止所有轨迹
   node.FinishAllTrajectories();
+  // 最后再做一次后端优化
   node.RunFinalOptimization();
 
   if (!FLAGS_save_state_filename.empty()) {
@@ -82,6 +88,7 @@ void Run() {
 }  // namespace
 }  // namespace cartographer_ros
 
+// node主函数位置
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
